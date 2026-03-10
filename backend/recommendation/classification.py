@@ -2,6 +2,7 @@ from importer import *
 from directory import *
 from sqlalchemy import create_engine
 import pandas as pd
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 
 current_device = "cpu"

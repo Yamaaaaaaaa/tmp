@@ -1,9 +1,10 @@
 from bs4 import BeautifulSoup
 import pandas as pd
 from sqlalchemy import create_engine
+import sqlalchemy.types
 
 # Tạo kết nối với cơ sở dữ liệu
-engine = create_engine("mysql+mysqlconnector://root:root@localhost:3306/law")
+engine = create_engine("mysql+mysqlconnector://root:123456789@localhost:3306/law")
 
 # Đọc dữ liệu từ cơ sở dữ liệu
 df = pd.read_sql('SELECT id, noidung FROM vbpl;', con=engine)
@@ -18,7 +19,7 @@ df = pd.read_sql('SELECT id, noidung FROM vbpl;', con=engine)
 id = 3012
 chi_muc = []
 id_chuong = None
-for j in range(200, len(df)):
+for j in range(len(df)):
     id_vb = df.iloc[j]['id']
     contents = df.iloc[j]['noidung']
     try:
@@ -67,7 +68,9 @@ for j in range(200, len(df)):
     change(text, control, 2)
 
 df_to_write = pd.DataFrame(chi_muc)
-df_to_write.to_sql('vb_chimuc', con=engine, if_exists='append', index=False)
+if not df_to_write.empty:
+    df_to_write.to_sql('vb_chimuc', con=engine, if_exists='append', index=False,
+                        dtype={'noi_dung': sqlalchemy.types.Text(length=4294967295)})
 print(df_to_write)
 # chi_muc {
 #     id

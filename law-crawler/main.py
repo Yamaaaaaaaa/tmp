@@ -26,13 +26,13 @@ import uuid
 
 # CREATE-DROP Tất cả dữ liệu
 # db.drop_tables([PDMucLienQuan ,PDTable, PDFile , PDDieu, PDChuong, PDDeMuc, PDChuDe])
-# db.create_tables([PDMucLienQuan ,PDTable, PDFile, PDDieu, PDChuong , PDDeMuc, PDChuDe])
+db.create_tables([PDMucLienQuan ,PDTable, PDFile, PDDieu, PDChuong , PDDeMuc, PDChuDe])
 
 checkpoint = "d8e4a3a0-254c-4593-967c-214ae12bcb0f.html"
 
-# Đọc Chủ đề
+# Bước 3.1: Lưu Chủ Đề
 print("Load Chủ Đề Từ File ...")
-with open("./phap-dien/chude.json", "r") as chude_file:
+with open("./phap-dien/chude.json", "r", encoding="utf-8-sig") as chude_file:
     chudes = json.load(chude_file)
 chude_file.close()
 
@@ -44,9 +44,9 @@ try:
 except:
     pass
 
-# Đọc Đề mục
+# Bước 3.2: Lưu Đề mục
 print("Load Đề Mục Từ File ...")
-with open("./phap-dien/demuc.json", "r") as demuc_file:
+with open("./phap-dien/demuc.json", "r", encoding="utf-8-sig") as demuc_file:
     demucs = json.load(demuc_file)
 demuc_file.close()
 
@@ -60,8 +60,9 @@ except:
     pass
 print("Inserted tất cả đề mục pháp điển!")
 
+# Bước 3.3: Duyệt cây Node & DOM (Nội dung từng đề mục)
 print("Load Tree Nodes Từ File ...")
-with open("./phap-dien/treeNode.json", "r") as tree_nodes_file:
+with open("./phap-dien/treeNode.json", "r", encoding="utf-8-sig") as tree_nodes_file:
     tree_nodes = json.load(tree_nodes_file)
 tree_nodes_file.close()
 
@@ -76,7 +77,7 @@ else:
     isSkipping = False
 for file in os.listdir(demuc_directory):
     file_name = os.fsdecode(file)
-    with open("./phap-dien/demuc/" + file_name, "r") as demuc_file:
+    with open("./phap-dien/demuc/" + file_name, "r", encoding="utf-8-sig") as demuc_file:
         count +=1
         if file_name == checkpoint:
             isSkipping = False
@@ -103,7 +104,8 @@ for file in os.listdir(demuc_directory):
                                 mapc=mapc, chimuc=chuong["ChiMuc"],
                                 stt=stt,
                                 demuc_id=chuong["DeMucID"])
-            except:
+            except Exception as e:
+                print(f"Lỗi insert chương {mapc}: {e}")
                 continue
             chuongs_data.append(chuong_data)
 
@@ -111,11 +113,16 @@ for file in os.listdir(demuc_directory):
         print(f'Insert {len(demuc_chuong)} chương của đề mục {file_name}')
         # Tạo một chương giả nếu không có chương
         if len(chuongs_data) == 0:
+            fake_mapc = str(uuid.uuid4())
             chuong_data = PDChuong(ten="",
-                                   mapc= uuid.uuid4(), chimuc="0",
+                                   mapc=fake_mapc, chimuc="0",
                                    stt=0,
                                    demuc_id=file_name.split(".")[0])
             chuongs_data.append(chuong_data)
+            try:
+                PDChuong.create(ten="", mapc=fake_mapc, chimuc="0", stt=0, demuc_id=file_name.split(".")[0])
+            except Exception as e:
+                print(f"Lỗi insert chương giả: {e}")
 
         demuc_dieus = [node for node in demuc_nodes if node not in demuc_chuong]
         print(f'Đề mục {file_name} có {len(demuc_chuong)} chương và {len(demuc_dieus)} điều')
@@ -147,10 +154,15 @@ for file in os.listdir(demuc_directory):
                 noidung += str(content.text.strip()) + "\n"
 
             try:
-                PDDieu.create(ten=ten, mapc=mapc, chimuc=dieu["ChiMuc"], stt=stt,
+                try:
+                    chimuc_val = int(dieu["ChiMuc"])
+                except ValueError:
+                    chimuc_val = 0
+                PDDieu.create(ten=ten, mapc=mapc, chimuc=chimuc_val, stt=stt,
                               noidung=noidung, vbqppl=vbqppl, vbqppl_link=vbqppl_link,
-                              demuc_id=dieu["DeMucID"], chuong_id=dieu["ChuongID"])
-            except:
+                              demuc_id=dieu["DeMucID"], chuong_id=dieu["ChuongID"], chude_id=dieu["ChuDeID"])
+            except Exception as e:
+                print(f"Lỗi insert điều {mapc}: {e}")
                 continue
             for table in tables:
                 PDTable.create(dieu_id=mapc, html=table)
@@ -162,8 +174,8 @@ for file in os.listdir(demuc_directory):
                 link = element["href"]
                 try:
                     PDFile.create(dieu_id=dieu["MAPC"], link=link, path="")
-                except:
-                    print("Lỗi insert file " + link)
+                except Exception as e:
+                    print(f"Lỗi insert file {link}: {e}")
 
                 element = element.nextSibling
 
@@ -181,10 +193,12 @@ for file in os.listdir(demuc_directory):
 
 print("Inserted tất cả nodes pháp điển!")
 
-for dieu_lienquan in dieus_lienquan:
-    try:
-        PDMucLienQuan.create(dieu_id1=dieu_lienquan["dieu_id1"], dieu_id2=dieu_lienquan["dieu_id2"])
-    except:
-        print(f'Không thể insert liên quan {dieu_lienquan["dieu_id1"]} - {dieu_lienquan["dieu_id2"]}')
-    print(f'Inserted liên quan {dieu_lienquan["dieu_id1"]} - {dieu_lienquan["dieu_id2"]}')
+try:
+    with db.atomic():
+        batch_data = [PDMucLienQuan(dieu_id1=dl["dieu_id1"], dieu_id2=dl["dieu_id2"]) for dl in dieus_lienquan]
+        for idx in range(0, len(batch_data), 1000):
+            PDMucLienQuan.bulk_create(batch_data[idx:idx+1000])
+    print(f'Inserted tất cả liên quan thành công!')
+except Exception as e:
+    print(f'Không thể insert liên quan: {e}')
 

@@ -10,7 +10,7 @@ sys.path.append(os.path.abspath(os.path.join('..')))
 import google.generativeai as genai
 import pandas as pd
 import re
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores.chroma import Chroma
 import requests
 from dotenv import load_dotenv, find_dotenv

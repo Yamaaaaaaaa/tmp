@@ -9,7 +9,7 @@ app = Flask(__name__)
 CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
-cron = CronTab(user='tranhuy')
+cron = CronTab(user='root')
 job = cron.new(command='/usr/bin/python classification.py')
 job.month.every(1)
 cron.write()

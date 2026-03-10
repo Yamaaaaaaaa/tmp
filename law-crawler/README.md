@@ -63,13 +63,13 @@ pip install -r requirements.txt
 ```
 
 -   Chạy crawler:
-
+- mysql -u root -p123456789 law -e "ALTER TABLE vbpl MODIFY COLUMN noidung LONGTEXT;"
 ```bash
 python main.py
 ```
 
 -   Phân chia VBQPPL thành các điều
-
+- mysql -u root -p123456789 law -e "ALTER TABLE vb_chimuc MODIFY COLUMN noi_dung LONGTEXT;"
 ```bash
 python split_document.py
 ```

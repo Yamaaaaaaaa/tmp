@@ -21,6 +21,10 @@ from db import db
 from peewee import *
 
 
+class LongTextField(TextField):
+    field_type = 'LONGTEXT'
+
+
 class BaseModel(Model):
     class Meta:
         database = db
@@ -53,9 +57,9 @@ class PDDieu(BaseModel):
     chuong_id = ForeignKeyField(PDChuong, backref="dieus")
     chude_id = ForeignKeyField(PDChuDe, backref="dieus")
     mapc = CharField(max_length=128, primary_key=True)
-    noidung = TextField()
+    noidung = LongTextField()
     chimuc = IntegerField()
-    vbqppl = TextField()
+    vbqppl = LongTextField()
     vbqppl_link = TextField(null=True)
     stt = IntegerField()
 

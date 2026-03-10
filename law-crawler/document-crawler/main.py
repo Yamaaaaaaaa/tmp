@@ -1,11 +1,12 @@
 import pandas as pd
 from sqlalchemy import create_engine
+import sqlalchemy.types
 import re
 from bs4 import BeautifulSoup
 import requests
 
 # Tạo kết nối với cơ sở dữ liệu
-engine = create_engine("mysql+mysqlconnector://root:root@localhost:3306/law")
+engine = create_engine("mysql+mysqlconnector://root:123456789@localhost:3306/law")
 
 # Đọc dữ liệu từ cơ sở dữ liệu
 df = pd.read_sql('SELECT vbqppl_link FROM pddieu GROUP BY vbqppl_link;', con=engine)
@@ -25,7 +26,8 @@ def save_data(list_id, list_noidung):
         'id': list_id,
         'noidung': list_noidung
     })
-    df_to_write.to_sql('vbpl', con=engine, if_exists='append', index=False)
+    df_to_write.to_sql('vbpl', con=engine, if_exists='append', index=False,
+                        dtype={'noidung': sqlalchemy.types.Text(length=4294967295)})
 
 list_vb = [get_infor(df.iloc[i]['vbqppl_link']) for i in range(len(df))]
 

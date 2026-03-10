@@ -4,7 +4,7 @@ from playhouse.shortcuts import model_to_dict
 from models import *
 from directory import *
 from cache import *
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores.chroma import Chroma
 from transformers import pipeline
 import torch
