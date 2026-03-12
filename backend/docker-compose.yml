@@ -113,6 +113,8 @@ services:
     depends_on:
       - qna-mysql
       - redis
+    volumes:
+      - ./rag/chroma_db_demuc:/app/chroma_db_demuc
     networks:
       - app-network
     environment:
@@ -127,8 +129,11 @@ services:
       MYSQL_PORT: 3306
       HF_INFERENCE_API: https://hm78d3nz1mmn6cjr.us-east-1.aws.endpoints.huggingface.cloud
       HF_TOKEN: ${HF_TOKEN}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
   recommendation-service:
     build: ./recommendation
+    volumes:
+      - ./recommendation/chroma_db_demuc:/app/chroma_db_demuc
     restart: always
     networks:
       - app-network

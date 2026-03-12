@@ -34,7 +34,7 @@ def init():
         }, 200
         
         return result
-@app.route('/api/v1/get-recommendations', methods=['POST'])
+@app.route('/api/v1/get_recommendations', methods=['POST'])
 def get_recommendations():
     if request.method == 'POST':
         req = request.get_json()

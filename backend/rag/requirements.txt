@@ -12,4 +12,5 @@ python-dotenv
 redis
 PyJWT
 waitress
-requests
+requests
+google-genai

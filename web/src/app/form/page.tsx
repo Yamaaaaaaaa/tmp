@@ -2,8 +2,10 @@
 import FormListSearch from '@/components/form/FormListSearch';
 import { Col, Row } from 'antd';
 import FormList from 'antd/es/form/FormList';
-import Lottie from 'lottie-react';
+import dynamic from 'next/dynamic';
 import { Fade } from 'react-awesome-reveal';
+
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
 export default function FormPage() {
     return (

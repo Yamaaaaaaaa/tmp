@@ -15,6 +15,7 @@ from waitress import serve
 import requests
 from dotenv import load_dotenv
 import os
+from google import genai
 
 
 load_dotenv()
@@ -25,13 +26,9 @@ if torch.cuda.is_available():
 embeddings = HuggingFaceEmbeddings(model_name=ST_MODEL_PATH, model_kwargs={"device": current_device})
 vectordb = Chroma(embedding_function=embeddings,
                   persist_directory=TOPIC_DB_PATH)
-# pipeline = pipeline(task="question-answering", model=QA_MODEL_PATH, local_files_only=True)
-HF_API_URL = os.getenv("HF_INFERENCE_API")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
-headers = {
-	"Authorization": f"Bearer {HF_TOKEN}",
-	"Content-Type": "application/json"
-}
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 app = Flask(__name__)
 CORS(app)
@@ -118,11 +115,11 @@ def add_question():
         context += f"{result_string} "
 
         citation.append({
-            "mapc": doc.metadata["mapc"],
-            "_link": doc.metadata["_link"],
-            "chude_id": doc.metadata["chude_id"],
-            "demuc_id": doc.metadata["demuc_id"],
-            "ten": doc.metadata["ten"],
+            "mapc": doc.metadata.get("mapc", doc.metadata.get("dieu_title", "")),
+            "_link": doc.metadata.get("_link", ""),
+            "chude_id": doc.metadata.get("chude_id", ""),
+            "demuc_id": doc.metadata.get("demuc_id", ""),
+            "ten": doc.metadata.get("ten", doc.metadata.get("demuc_name", "")),
             "noidung": result_string
         })
     
@@ -135,32 +132,21 @@ def add_question():
 
 
     inputs = f"Dựa vào văn bản sau đây:\n{context}\nHãy trả lời câu hỏi: {question}"
-    payload = {
-        "inputs": inputs
-    }
-    output = requests.post(HF_API_URL, headers=headers, json=payload)
-    if not output.ok:
+    try:
+        gemini_response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=inputs,
+        )
+        response = gemini_response.text
+    except Exception as e:
         return {
             "status": "error",
-            "response": f"HF API error: {output.status_code}",
+            "response": f"Gemini API error: {str(e)}",
         }, 500
-    response = output.json()
-    if not isinstance(response, list) or len(response) == 0:
+    if not response:
         return {
             "status": "error",
             "response": "Empty response from AI model",
-        }, 500
-    response = response[0]
-    if not response:
-        return {
-            "status": "error",
-            "response": "Error while generating answer",
-        }, 500
-    response = response.get("generated_text") or response.get("response") or ""
-    if not response:
-        return {
-            "status": "error",
-            "response": "Could not extract answer from AI response",
         }, 500
 
 
@@ -230,11 +216,11 @@ def add_question_with_context():
         result_string = re.sub(r"\s+", r" ", result_string)
 
         citation.append({
-            "mapc": doc.metadata["mapc"],
-            "_link": doc.metadata["_link"],
-            "chude_id": doc.metadata["chude_id"],
-            "demuc_id": doc.metadata["demuc_id"],
-            "ten": doc.metadata["ten"],
+            "mapc": doc.metadata.get("mapc", doc.metadata.get("dieu_title", "")),
+            "_link": doc.metadata.get("_link", ""),
+            "chude_id": doc.metadata.get("chude_id", ""),
+            "demuc_id": doc.metadata.get("demuc_id", ""),
+            "ten": doc.metadata.get("ten", doc.metadata.get("demuc_name", "")),
             "noidung": result_string
         })
     
@@ -242,32 +228,21 @@ def add_question_with_context():
 
 
     inputs = f"Dựa vào văn bản sau đây:\n{context}\nHãy trả lời câu hỏi: {question}"
-    payload = {
-        "inputs": inputs
-    }
-    output = requests.post(HF_API_URL, headers=headers, json=payload)
-    if not output.ok:
+    try:
+        gemini_response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=inputs,
+        )
+        response = gemini_response.text
+    except Exception as e:
         return {
             "status": "error",
-            "response": f"HF API error: {output.status_code}",
+            "response": f"Gemini API error: {str(e)}",
         }, 500
-    response = output.json()
-    if not isinstance(response, list) or len(response) == 0:
+    if not response:
         return {
             "status": "error",
             "response": "Empty response from AI model",
-        }, 500
-    response = response[0]
-    if not response:
-        return {
-            "status": "error",
-            "response": "Error while generating answer",
-        }, 500
-    response = response.get("generated_text") or response.get("response") or ""
-    if not response:
-        return {
-            "status": "error",
-            "response": "Could not extract answer from AI response",
         }, 500
 
 

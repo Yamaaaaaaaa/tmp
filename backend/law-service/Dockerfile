@@ -1,25 +1,26 @@
-# Use an OpenJDK 19 base image
-FROM eclipse-temurin:17-jdk
+FROM eclipse-temurin:17-jdk AS build
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the Maven project file and download the dependencies
 COPY .mvn/ .mvn
 COPY mvnw pom.xml ./
 
-RUN chmod +x mvnw
-# clean up the file
-RUN sed -i 's/\r$//' mvnw
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
+RUN ./mvnw dependency:go-offline
 
-# clean up the file
-RUN sed -i 's/\r$//' mvnw
-
-RUN ./mvnw dependency:resolve
-
-# Copy the entire project
 COPY src ./src
-# Set the entry point to run the Spring Boot application
-CMD ["./mvnw", "spring-boot:run"]
+RUN ./mvnw clean package -DskipTests
+
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+COPY --from=build /app/target/*.jar app.jar
+
+RUN useradd --create-home appuser
+
+USER appuser
 
 EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

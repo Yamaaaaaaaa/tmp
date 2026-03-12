@@ -2,8 +2,10 @@
 import { VBQPPLModel } from '@/models/VBQPPLModel';
 import vbqpplService from '@/services/vbqppl.service';
 import { Button, Card, Col, Input, Pagination, Row, Select, Tag } from 'antd';
-import Lottie from 'lottie-react';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
+
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 import MarkdownIt from 'markdown-it';
 import { Fade } from 'react-awesome-reveal';
 import PhapDienHoa from '@/components/vbqppl/PhapDienHoa';

@@ -3,8 +3,10 @@ import { DeMucModel } from '@/models/DeMucModel';
 import pddemucService, { PDDemucGetAllFilter } from '@/services/pddemuc.service';
 import { Col, Row, Select, Input, Pagination, Card, Button, Carousel, MenuProps, Tag } from 'antd';
 import { useEffect, useState } from 'react';
-import Lottie from 'lottie-react';
+import dynamic from 'next/dynamic';
 import useDelay from '@/hooks/useDelay';
+
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 import pddieuService from '@/services/pddieu.service';
 import { LoginOutlined, MailOutlined } from '@ant-design/icons';
 
