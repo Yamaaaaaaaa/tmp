@@ -16,6 +16,6 @@ public class PDTable {
     @JoinColumn(name = "dieu_id", nullable = false)
     private PDDieu bangOfDieu;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     private String html;
 }

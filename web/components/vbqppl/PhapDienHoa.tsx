@@ -5,8 +5,10 @@ import pddemucService, { PDDemucGetAllFilter } from '@/services/pddemuc.service'
 import vbqpplChuaPhapDienService from '@/services/vbqpplChuaPhapDien.service';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { Button, Card, Col, Input, Pagination, Row } from 'antd';
-import Lottie from 'lottie-react';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
+
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 import { Fade } from 'react-awesome-reveal';
 
 export default function PhapDienHoa() {

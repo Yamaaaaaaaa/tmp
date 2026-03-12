@@ -40,11 +40,11 @@ export default function Navbar() {
                             <Link href="/phapdien">Luật</Link>
                         </div>
                     </button>
-                    <a href="#">
+                    <Link href="/">
                         <h4>
                             VNLaw<span>Advisor</span>
                         </h4>
-                    </a>
+                    </Link>
                 </div>
 
                 <div className="navbar-menu" id="open-navbar1">

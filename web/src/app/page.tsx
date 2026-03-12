@@ -1,12 +1,13 @@
 'use client';
-import law from '@/assets/lottie/law.json';
+import dynamic from 'next/dynamic';
 import HomeNavigationCard from '@/components/home/HomeNavigationCard';
 import { Col, Input, Row, Spin } from 'antd';
 const { Search } = Input;
 import { useEffect, useState } from 'react';
-import Lottie from 'lottie-react';
 import { Fade } from 'react-awesome-reveal';
 import vbqpplService from '@/services/vbqppl.service';
+
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 export default function Home() {
     const [animationData, setAnimationData] = useState<any>(null);
     const [searchResult, setSearchResult] = useState<any[]>([]);
@@ -41,7 +42,7 @@ export default function Home() {
             <Fade>
                 <Row className="wavy h-[450px] w-full" justify="center" align="middle">
                     <Col span={8}>
-                        <Lottie animationData={law} className="w-[450px]" />
+                        <Lottie animationData={animationData} className="w-[450px]" />
                     </Col>
                     <Col span={10}>
                         <h1 style={{ color: 'white' }} className="text-5xl font-bold">

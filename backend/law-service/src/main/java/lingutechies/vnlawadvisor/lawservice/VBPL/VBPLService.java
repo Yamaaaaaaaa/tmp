@@ -14,8 +14,17 @@ import java.util.List;
 public class VBPLService {
     private final VBPLRepository VBPLRepository;
 
-    public Page<VBPL> getAllVBPL(Optional<Integer> pageNo, Optional<Integer> pageSize){
+    public Page<VBPL> getAllVBPL(Optional<Integer> pageNo, Optional<Integer> pageSize, Optional<String> loai, Optional<String> name){
         Pageable pageable = PageRequest.of(pageNo.orElse(0), pageSize.orElse(10));
+        String loaiFilter = loai.filter(s -> !s.isBlank()).orElse(null);
+        String nameFilter = name.filter(s -> !s.isBlank()).orElse(null);
+        if (loaiFilter != null && nameFilter != null) {
+            return VBPLRepository.findByLoaiAndTenContainingIgnoreCase(loaiFilter, nameFilter, pageable);
+        } else if (loaiFilter != null) {
+            return VBPLRepository.findByLoai(loaiFilter, pageable);
+        } else if (nameFilter != null) {
+            return VBPLRepository.findByTenContainingIgnoreCase(nameFilter, pageable);
+        }
         return VBPLRepository.findAll(pageable);
     }
 

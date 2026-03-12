@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 import sqlalchemy.types
 
 # Tạo kết nối với cơ sở dữ liệu
-engine = create_engine("mysql+mysqlconnector://root:123456789@localhost:3306/law")
+engine = create_engine("mysql+mysqlconnector://root:123456@localhost:3306/law")
 
 # Đọc dữ liệu từ cơ sở dữ liệu
 df = pd.read_sql('SELECT id, noidung FROM vbpl;', con=engine)

@@ -11,4 +11,7 @@ import java.util.List;
 @Repository
 public interface VBPLRepository extends JpaRepository<VBPL, Integer> {
     Page<VBPL> findAll(Pageable pageable);
+    Page<VBPL> findByLoai(String loai, Pageable pageable);
+    Page<VBPL> findByTenContainingIgnoreCase(String ten, Pageable pageable);
+    Page<VBPL> findByLoaiAndTenContainingIgnoreCase(String loai, String ten, Pageable pageable);
 }

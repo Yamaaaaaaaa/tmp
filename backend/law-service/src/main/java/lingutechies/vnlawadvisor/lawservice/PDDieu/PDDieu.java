@@ -25,7 +25,7 @@ public class PDDieu {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String mapc;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     private String ten;
 
     @Column(nullable = false)
@@ -46,13 +46,13 @@ public class PDDieu {
     @JoinColumn(name = "chuong_id", nullable = false)
     private PDChuong chuong;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "longtext")
     private String noidung;
 
     @Column(nullable = false)
     private Integer chimuc;
 
-    @Column(name = "vbqppl", nullable = false)
+    @Column(name = "vbqppl", nullable = false, columnDefinition = "longtext")
     private String vbqppl;
 
     @Column(name = "vbqppl_link",nullable = false)

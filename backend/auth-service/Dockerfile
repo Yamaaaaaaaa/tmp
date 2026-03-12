@@ -1,12 +1,14 @@
-FROM node:18
+FROM node:18-slim
 
 WORKDIR /app
 
-COPY package.json .
+COPY package.json package-lock.json ./
 
-RUN npm i
+RUN npm ci --omit=dev && npm cache clean --force
 
 COPY . .
+
+USER node
 
 EXPOSE 5000
 

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 import requests
 
 # Tạo kết nối với cơ sở dữ liệu
-engine = create_engine("mysql+mysqlconnector://root:123456789@localhost:3306/law")
+engine = create_engine("mysql+mysqlconnector://root:123456@localhost:3306/law")
 
 # Đọc dữ liệu từ cơ sở dữ liệu
 df = pd.read_sql('SELECT vbqppl_link FROM pddieu GROUP BY vbqppl_link;', con=engine)

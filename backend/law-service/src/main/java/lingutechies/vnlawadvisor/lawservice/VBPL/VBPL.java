@@ -17,12 +17,11 @@ public class VBPL {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false)
+    @Column(columnDefinition = "longtext")
     private String noidung;
 
-    @Column(nullable = false)
     private String loai;
 
-    @Column(nullable = false)
+    @Column(length = 1000)
     private String ten;
 }
