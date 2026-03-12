@@ -78,7 +78,7 @@ export default function TreeView({ setChuongSelected }: TreeViewProps) {
                 // Update tree data
                 const { chuDe, deMuc, chuong, dieus } =
                     await pddieuService.getDieuTreeViewByMapc(dieu);
-                setChuongSelected({ mapc: chuong.mapc, ten: chuong.ten, dieus: dieus });
+                setChuongSelected({ mapc: chuong.mapc, ten: chuong.ten, dieus: dieus, type: 'chuong' });
                 const keyChuong = `chuong_${chuong.mapc}`;
                 const keyDeMuc = `demuc_${deMuc.id}`;
                 const keyChuDe = `chude_${chuDe.id}`;
@@ -103,10 +103,17 @@ export default function TreeView({ setChuongSelected }: TreeViewProps) {
     const onSelect = async (selectedKeys: React.Key[], info: any) => {
         if (selectedKeys.length === 0) return;
         setSelectedKeys(selectedKeys);
-        const key = selectedKeys[0].toString().split('_')[1] as string;
-        pddieuService.getAllByChuongId(key).then((pddieu: any) => {
-            setChuongSelected({ mapc: key, ten: info.node.title, dieus: pddieu.content });
-        });
+        const keyStr = selectedKeys[0].toString();
+        const [nodeType, nodeId] = keyStr.split('_');
+        if (nodeType === 'chuong') {
+            pddieuService.getAllByChuongId(nodeId).then((pddieu: any) => {
+                setChuongSelected({ mapc: nodeId, ten: info.node.title, dieus: pddieu.content, type: 'chuong' });
+            });
+        } else if (nodeType === 'chude') {
+            pddieuService.getAllByChuDeId(nodeId).then((pddieu: any) => {
+                setChuongSelected({ mapc: nodeId, ten: info.node.title, dieus: pddieu.content, type: 'chude' });
+            });
+        }
     };
 
     const onLoadData = async ({ key, ten, children }: any) =>

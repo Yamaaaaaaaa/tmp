@@ -33,6 +33,16 @@ public class PDDieuService {
     public Page<PureDieuProjectionImpl> getDieuByChuong(String chuongId, Optional<Integer> pageNo, Optional<Integer> pageSize){
         Pageable pageable = PageRequest.of(pageNo.orElse(0), pageSize.orElse(10));
         Page<PureDieuProjection> result = pdDieuRepository.findAllByChuongMapcOrderByStt(chuongId, pageable);
+        return mapPureDieuProjectionToImpl(result);
+    }
+
+    public Page<PureDieuProjectionImpl> getDieuByChuDe(String chuDeId, Optional<Integer> pageNo, Optional<Integer> pageSize) {
+        Pageable pageable = PageRequest.of(pageNo.orElse(0), pageSize.orElse(10));
+        Page<PureDieuProjection> result = pdDieuRepository.findAllByChuDeIdOrderByStt(chuDeId, pageable);
+        return mapPureDieuProjectionToImpl(result);
+    }
+
+    private Page<PureDieuProjectionImpl> mapPureDieuProjectionToImpl(Page<PureDieuProjection> result) {
         List<PureDieuProjectionImpl> contentImpl = new ArrayList<>();
         for (PureDieuProjection pureDieuProjection : result.getContent()) {
             String mapc = pureDieuProjection.getMapc();
@@ -46,12 +56,9 @@ public class PDDieuService {
                     pureDieuProjection.getChimuc(),
                     pureDieuProjection.getVbqppl(),
                     pureDieuProjection.getVbqpplLink(), files, bangs);
-            // Copy other properties if needed
             contentImpl.add(pureDieuProjectionImpl);
         }
-
-        Page<PureDieuProjectionImpl> resultImpl = new PageImpl<>(contentImpl, result.getPageable(), result.getTotalElements());
-        return resultImpl;
+        return new PageImpl<>(contentImpl, result.getPageable(), result.getTotalElements());
     }
 
     public ListDieuTreeViewDTO getDieuTreeViewByMapc(String mapc) throws CustomException {

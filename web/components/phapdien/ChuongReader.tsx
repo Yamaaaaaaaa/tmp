@@ -56,7 +56,12 @@ export default function ChuongReader({ selectedChuong, setSelectedChuong }: Chuo
     }
     async function fetchMore() {
         if (!selectedChuong.mapc || loaded) return;
-        const pddieu = await pddieuService.getAllByChuongId(selectedChuong.mapc.toString(), page);
+        let pddieu;
+        if (selectedChuong.type === 'chude') {
+            pddieu = await pddieuService.getAllByChuDeId(selectedChuong.mapc.toString(), page);
+        } else {
+            pddieu = await pddieuService.getAllByChuongId(selectedChuong.mapc.toString(), page);
+        }
         if (!pddieu.content.length) {
             loaded = true;
             return;

@@ -10,6 +10,7 @@ export interface SelectedChuong {
     ten: string;
     stt: number;
     dieus: DieuModel[];
+    type?: 'chuong' | 'chude';
 }
 
 export default function PhapDien() {

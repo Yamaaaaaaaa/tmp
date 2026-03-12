@@ -15,6 +15,8 @@ public interface PDDieuRepository extends JpaRepository<PDDieu, String> {
     Page<PureDieuProjection> findAllByChuongMapcOrderByStt(String chuongMaPc, Pageable pageable);
     List<PureDieuProjection> findAllByChuongMapcOrderByStt(String chuongMaPc);
 
+    Page<PureDieuProjection> findAllByChuDeIdOrderByStt(String chuDeId, Pageable pageable);
+
     @Query("SELECT new lingutechies.vnlawadvisor.lawservice.PDDieu.DTO.PureDieuProjectionImpl(d.mapc, d.ten, d.stt, " +
             "d.noidung, d.chimuc, d.vbqppl, d.vbqpplLink) " +
             "FROM PDDieu d WHERE d.deMuc.id = ?1 AND (?2 = '' OR d.ten LIKE %?2%) ")

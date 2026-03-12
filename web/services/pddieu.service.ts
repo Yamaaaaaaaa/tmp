@@ -27,6 +27,13 @@ class PDDieuService {
             },
         })) as any;
     }
+    async getAllByChuDeId(chudeId: string, page?: number, size?: number) {
+        return (await this.client.get(`/dieu/chude/${chudeId}`, {
+            params: {
+                pageNo: page,
+            },
+        })) as any;
+    }
     async getDieuTreeViewByMapc(mapc: string) {
         return (await this.client.get(`/dieu/tree/${mapc}`)) as any;
     }

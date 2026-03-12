@@ -20,6 +20,12 @@ public class PDDieuController {
     public Page<PureDieuProjectionImpl> getDieuByChuong(@PathVariable String chuongId, Optional<Integer> pageNo, Optional<Integer> pageSize){
         return pdDieuService.getDieuByChuong(chuongId, pageNo, pageSize);
     }
+
+    @GetMapping("/chude/{chudeId}")
+    public Page<PureDieuProjectionImpl> getDieuByChuDe(@PathVariable String chudeId, Optional<Integer> pageNo, Optional<Integer> pageSize){
+        return pdDieuService.getDieuByChuDe(chudeId, pageNo, pageSize);
+    }
+
     @GetMapping("/tree/{mapc}")
     public ListDieuTreeViewDTO getDieuTreeViewByMapc(@PathVariable String mapc) throws CustomException {
         return pdDieuService.getDieuTreeViewByMapc(mapc);

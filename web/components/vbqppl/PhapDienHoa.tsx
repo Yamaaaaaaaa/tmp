@@ -92,7 +92,7 @@ export default function PhapDienHoa() {
                         {dieus.map((item: any) => {
                             return (
                                 <Col span={8} key={item.id}>
-                                    <Card title={item.vbpl.ten}>{item.noi_dung}</Card>
+                                    <Card title={item.vbpl?.ten}>{item.noi_dung}</Card>
                                 </Col>
                             );
                         })}
