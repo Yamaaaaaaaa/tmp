@@ -73,5 +73,13 @@ python main.py
 ```bash
 python split_document.py
 ```
-
+```bash
+python save_vbplchuapd.py
+```
+```bash
+python save_vbpldaydu.py
+```
+```bash
+python split_vbplchimuc.py
+```
 Sau khi chạy xong, dữ liệu VBQPPL và các điều sẽ được lưu vào DB, bạn có thể export ra bằng PHPAdmin dưới dạng .sql để dùng lại.
