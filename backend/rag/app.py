@@ -27,8 +27,9 @@ vectordb = Chroma(embedding_function=embeddings,
                   persist_directory=TOPIC_DB_PATH)
 # pipeline = pipeline(task="question-answering", model=QA_MODEL_PATH, local_files_only=True)
 HF_API_URL = os.getenv("HF_INFERENCE_API")
+HF_TOKEN = os.getenv("HF_TOKEN", "")
 headers = {
-	"Authorization": "Bearer XXXXXX",
+	"Authorization": f"Bearer {HF_TOKEN}",
 	"Content-Type": "application/json"
 }
 
@@ -38,13 +39,20 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 
 @app.route('/api/v1/question', methods=['GET'])
 def get_question(email=None):
-    token = request.headers.get('Authorization')
+    try:
+        token = request.headers.get('Authorization')
 
-    if token.startswith('Bearer '):
-        token = token[7:]
-        
-    decoded = jwt.decode(token, ACCESS_TOKEN_KEY, algorithms=['HS256'])
-    email = decoded['email']
+        if token and token.startswith('Bearer '):
+            token = token[7:]
+            
+        decoded = jwt.decode(token, ACCESS_TOKEN_KEY, algorithms=['HS256'])
+        email = decoded['email']
+    except:
+        return {
+            "status": "error",
+            "response": "Need authentication",
+        }, 401
+
     if email:
         query = QuestionModel.select().where(email == QuestionModel.email).dicts()
         res = []
@@ -65,14 +73,20 @@ def get_question(email=None):
     
 @app.route('/api/v1/question', methods=['POST'])
 def add_question():
-    token = request.headers.get('Authorization')
+    try:
+        token = request.headers.get('Authorization')
 
-    if token.startswith('Bearer '):
-        token = token[7:]
-    data = request.get_json()
-    decoded = jwt.decode(token, ACCESS_TOKEN_KEY, algorithms=['HS256'])
+        if token and token.startswith('Bearer '):
+            token = token[7:]
+        data = request.get_json()
+        decoded = jwt.decode(token, ACCESS_TOKEN_KEY, algorithms=['HS256'])
 
-    email = decoded['email']
+        email = decoded['email']
+    except:
+        return {
+            "status": "error",
+            "response": "Need authentication",
+        }, 401
 
     try:
         question = data["question"]
@@ -125,19 +139,29 @@ def add_question():
         "inputs": inputs
     }
     output = requests.post(HF_API_URL, headers=headers, json=payload)
-    response =  output.json()
-    if len(response) < 0:
+    if not output.ok:
         return {
             "status": "error",
-            "response": "Error while generating answer",
+            "response": f"HF API error: {output.status_code}",
         }, 500
-    response =  response[0]
+    response = output.json()
+    if not isinstance(response, list) or len(response) == 0:
+        return {
+            "status": "error",
+            "response": "Empty response from AI model",
+        }, 500
+    response = response[0]
     if not response:
         return {
             "status": "error",
             "response": "Error while generating answer",
         }, 500
-    response =  response["response"]
+    response = response.get("generated_text") or response.get("response") or ""
+    if not response:
+        return {
+            "status": "error",
+            "response": "Could not extract answer from AI response",
+        }, 500
 
 
     # response = pipeline(question=question, context=context)["answer"].strip()
@@ -159,7 +183,7 @@ def add_question_with_context():
     try: 
         token = request.headers.get('Authorization')
 
-        if token.startswith('Bearer '):
+        if token and token.startswith('Bearer '):
             token = token[7:]
         data = request.get_json()
         decoded = jwt.decode(token, ACCESS_TOKEN_KEY, algorithms=['HS256'])
@@ -168,8 +192,8 @@ def add_question_with_context():
     except: 
          return {
             "status": "error",
-            "response": "Need authencation",
-        }, 400
+            "response": "Need authentication",
+        }, 401
          
     try:
         question = data["question"]
@@ -222,19 +246,29 @@ def add_question_with_context():
         "inputs": inputs
     }
     output = requests.post(HF_API_URL, headers=headers, json=payload)
-    response =  output.json()
-    if len(response) < 0:
+    if not output.ok:
         return {
             "status": "error",
-            "response": "Error while generating answer",
+            "response": f"HF API error: {output.status_code}",
         }, 500
-    response =  response[0]
+    response = output.json()
+    if not isinstance(response, list) or len(response) == 0:
+        return {
+            "status": "error",
+            "response": "Empty response from AI model",
+        }, 500
+    response = response[0]
     if not response:
         return {
             "status": "error",
             "response": "Error while generating answer",
         }, 500
-    response =  response["response"]
+    response = response.get("generated_text") or response.get("response") or ""
+    if not response:
+        return {
+            "status": "error",
+            "response": "Could not extract answer from AI response",
+        }, 500
 
 
     # response = pipeline(question=question, context=context)["answer"].strip()

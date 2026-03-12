@@ -2,6 +2,7 @@ langchain==0.1.20
 langchain-community==0.0.38
 chromadb
 sentence-transformers
+transformers
 flask
 flask_cors
 torch
@@ -11,3 +12,4 @@ python-dotenv
 redis
 PyJWT
 waitress
+requests
