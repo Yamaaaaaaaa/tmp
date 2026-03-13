@@ -118,18 +118,39 @@ services:
     networks:
       - app-network
     environment:
+      # Database Configuration
       MYSQL_ROOT_PASSWORD: 123456789
       MYSQL_DATABASE: qna
       MYSQL_HOST: qna-mysql
+      MYSQL_PORT: 3306
+      
+      # Models & Vector DB
       ST_MODEL_PATH: keepitreal/vietnamese-sbert
       QA_MODEL_PATH: namngo/videberta-xsmall-finetuned-squad
-      REDIS_HOST: redis
       TOPIC_DB_PATH: ./chroma_db_demuc
+      
+      # Cache & Auth
+      REDIS_HOST: redis
       ACCESS_TOKEN_KEY: VN-Law-Advisor
-      MYSQL_PORT: 3306
+      
+      # External APIs
       HF_INFERENCE_API: https://hm78d3nz1mmn6cjr.us-east-1.aws.endpoints.huggingface.cloud
       HF_TOKEN: ${HF_TOKEN}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+
+      
+      # Multi-turn Conversation Configuration
+      SESSION_TIMEOUT_HOURS: 24
+      MAX_CONTEXT_TOKENS: 4000
+      MAX_REQUESTS_PER_HOUR: 100
+      MAX_REQUESTS_PER_DAY: 500
+      
+      # Security & Encryption
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      
+      # Data Retention Policies
+      CONVERSATION_RETENTION_DAYS: 90
+      SECURITY_LOG_RETENTION_DAYS: 365
   recommendation-service:
     build: ./recommendation
     volumes:
@@ -141,6 +162,7 @@ services:
       ST_MODEL_PATH: keepitreal/vietnamese-sbert
       QA_MODEL_PATH: namngo/videberta-xsmall-finetuned-squad
       TOPIC_DB_PATH: ./chroma_db_demuc
+      TEXT_DB_PATH: ./chroma_db_vbqppl
       REFRESH_TOKEN_KEY: auth-service
 networks:
     app-network:

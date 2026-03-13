@@ -1,73 +1,80 @@
 'use client';
-import { EditOutlined, MessageOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EditOutlined, MessageOutlined } from '@ant-design/icons';
 import './sidenav.css';
-import { formatDate, formatDateByString, groupBy } from '@/utils/common';
-import qnaService, { CitationModel } from '@/services/qna.service';
+import { formatDateByString } from '@/utils/common';
+import chatService, { ChatSession, CitationModel } from '@/services/chat.service';
 import { MessageBoxProps } from './MessageBox';
 import { SelectedQuestion } from '@/src/app/chat/page';
 import { SetStateAction, useEffect, useState } from 'react';
-import { QuestionModel } from '@/models/ChatAnswerModel';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 export interface QuestionSideNavProps {
     setCitations: React.Dispatch<SetStateAction<CitationModel[]>>;
     setMessageBoxes: React.Dispatch<React.SetStateAction<MessageBoxProps[]>>;
-    selectedQuestion: SelectedQuestion;
     setSelectedQuestion: React.Dispatch<React.SetStateAction<SelectedQuestion>>;
-    messageBoxes: MessageBoxProps[];
-}
-
-export interface GroupedQuestion {
-    date: String;
-    questions: QuestionModel[];
+    currentSessionId?: string;
+    setCurrentSessionId: React.Dispatch<React.SetStateAction<string | undefined>>;
+    refreshKey: number;
 }
 
 export default function QuestionSideNav({
     setCitations,
     setMessageBoxes,
     setSelectedQuestion,
-    messageBoxes,
+    currentSessionId,
+    setCurrentSessionId,
+    refreshKey,
 }: QuestionSideNavProps) {
-    const [allQuestions, setAllQuestions] = useState<GroupedQuestion[]>();
+    const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [autoAnimateParent] = useAutoAnimate();
     useEffect(() => {
-        async function fetchAllQuestions() {
-            const response = await qnaService.getQuestions();
-            const groupedQuestions = groupBy(response, (item: any) => item.updatedAt) as Map<
-                String,
-                QuestionModel[]
-            >;
-            const groupedQuestionsArray: GroupedQuestion[] = [];
-            groupedQuestions.forEach((value, key) => {
-                groupedQuestionsArray.push({
-                    date: key,
-                    questions: value,
+        async function fetchSessions() {
+            try {
+                const response = await chatService.getSessions();
+                const list = response?.data || [];
+                list.sort((a: ChatSession, b: ChatSession) => {
+                    const aTime = a.last_message_at || a.created_at;
+                    const bTime = b.last_message_at || b.created_at;
+                    return (bTime || '').localeCompare(aTime || '');
                 });
-            });
-            setAllQuestions(groupedQuestionsArray);
+                setSessions(list);
+            } catch (error) {
+                console.error('Error fetching sessions:', error);
+            }
         }
-        fetchAllQuestions();
-    }, [messageBoxes]);
+        fetchSessions();
+    }, [refreshKey]);
 
-    function selectQuestion(item: QuestionModel) {
-        setSelectedQuestion({
-            isNew: false,
-            question: item.question,
-            answer: item.response,
-        });
-        setMessageBoxes([
-            {
-                isUser: true,
-                content: item.question,
-                time: item.updatedAt,
-            },
-            {
-                isUser: false,
-                content: item.response,
-                time: item.updatedAt,
-            },
-        ]);
-        setCitations(item.answer);
+    async function selectSession(sessionId: string) {
+        try {
+            setSelectedQuestion({ isNew: false });
+            setCurrentSessionId(sessionId);
+            const response = await chatService.getSessionMessages(sessionId, 50);
+            // Be resilient to different response shapes (interceptors may already unwrap)
+            const payload: any = response as any;
+            const messages =
+                (Array.isArray(payload?.data) && payload.data) ||
+                (Array.isArray(payload) && payload) ||
+                (Array.isArray(payload?.data?.data) && payload.data.data) ||
+                [];
+            const mapped = messages.map((msg: any) => [
+                {
+                    isUser: true,
+                    content: msg.user_query,
+                    time: new Date(msg.created_at),
+                },
+                {
+                    isUser: false,
+                    content: msg.ai_response,
+                    time: new Date(msg.created_at),
+                },
+            ]).flat();
+            setMessageBoxes(mapped);
+            const lastMessage = messages[messages.length - 1];
+            setCitations(lastMessage?.citations || []);
+        } catch (error) {
+            console.error('Error loading session messages:', error);
+        }
     }
     function setNewChat() {
         setSelectedQuestion({
@@ -75,6 +82,19 @@ export default function QuestionSideNav({
         });
         setMessageBoxes([]);
         setCitations([]);
+        setCurrentSessionId(undefined);
+    }
+
+    async function deleteSession(sessionId: string) {
+        try {
+            await chatService.deleteSession(sessionId);
+            setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+            if (currentSessionId === sessionId) {
+                setNewChat();
+            }
+        } catch (error) {
+            console.error('Error deleting session:', error);
+        }
     }
 
     return (
@@ -115,17 +135,38 @@ export default function QuestionSideNav({
                 <EditOutlined style={{ color: '#5073f3' }} />
             </div>
             <div ref={autoAnimateParent} className="question-container mt-5">
-                {allQuestions?.map((groupedQuestion) => (
-                    <div key={groupedQuestion.date.toString()} className="group-container mt-2">
-                        <p className="time">{formatDateByString(groupedQuestion.date)}</p>
-                        {groupedQuestion.questions.map((question) => (
-                            <div onClick={() => selectQuestion(question)} className="sidenav-item">
-                                <MessageOutlined />
-                                <h3 style={{ fontSize: 20, fontWeight: 200 }}>
-                                    {question.question}
+                {sessions.map((session) => (
+                    <div
+                        key={session.session_id}
+                        className="sidenav-item"
+                        onClick={() => selectSession(session.session_id)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 8,
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                            <MessageOutlined />
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <h3 style={{ fontSize: 16, fontWeight: 400, margin: 0 }}>
+                                    {session.session_name || 'Chat Session'}
                                 </h3>
+                                {session.last_message_at && (
+                                    <span className="time">
+                                        {formatDateByString(session.last_message_at)}
+                                    </span>
+                                )}
                             </div>
-                        ))}
+                        </div>
+                        <DeleteOutlined
+                            style={{ color: '#ff4d4f' }}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                deleteSession(session.session_id);
+                            }}
+                        />
                     </div>
                 ))}
             </div>

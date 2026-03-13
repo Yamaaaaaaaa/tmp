@@ -16,23 +16,37 @@ import requests
 from dotenv import load_dotenv
 import os
 from google import genai
+import logging
+
+# Import multi-turn chat blueprint
+from chat_endpoints import chat_bp, embeddings, vectordb, gemini_client
 
 
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 current_device = "cpu"
 if torch.cuda.is_available():
     current_device="cuda"
-embeddings = HuggingFaceEmbeddings(model_name=ST_MODEL_PATH, model_kwargs={"device": current_device})
-vectordb = Chroma(embedding_function=embeddings,
-                  persist_directory=TOPIC_DB_PATH)
+# embeddings = HuggingFaceEmbeddings(model_name=ST_MODEL_PATH, model_kwargs={"device": current_device})
+# vectordb = Chroma(embedding_function=embeddings,
+#                   persist_directory=TOPIC_DB_PATH)
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+# gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 app = Flask(__name__)
 CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
+
+# Register multi-turn chat blueprint
+app.register_blueprint(chat_bp)
 
 @app.route('/api/v1/question', methods=['GET'])
 def get_question(email=None):
@@ -272,5 +286,107 @@ def delete_question(question_id):
     QuestionModel.delete().where(QuestionModel.id == question_id).execute()
     return '', 204
 
-print('QNA server is running. ')
-serve(app, host='0.0.0.0', port=5001, threads=1)
+
+@app.route('/api/v1/validate-query', methods=['POST'])
+def validate_query():
+    """
+    Validate user query để xác định loại câu hỏi
+    
+    Request body:
+    {
+        "question": "Câu hỏi của user"
+    }
+    
+    Returns:
+    {
+        "status": "success",
+        "type": "chitchat" | "legal_unclear" | "legal_clear",
+        "message": "Optional clarification question if legal_unclear",
+        "keywords": []
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return {
+                "status": "error",
+                "message": "Request body is required"
+            }, 400
+        
+        question = data.get('question', '').strip()
+        if not question:
+            return {
+                "status": "error",
+                "message": "Question cannot be empty"
+            }, 400
+        
+        # Call LLM to analyze query
+        validation_prompt = f"""
+Phân tích câu hỏi sau và xác định loại:
+1. "chitchat" - Nếu là nội dung không liên quan đến pháp luật (chào hỏi, câu hỏi sinh hoạt, v.v.)
+2. "legal_unclear" - Nếu liên quan đến pháp luật nhưng chưa rõ ràng, cần clarification
+3. "legal_clear" - Nếu là câu hỏi pháp luật rõ ràng, cụ thể
+
+Câu hỏi: "{question}"
+
+Trả lời theo format JSON (không có markdown):
+{{
+    "type": "chitchat|legal_unclear|legal_clear",
+    "clarification_question": "Nếu legal_unclear, đặt câu hỏi để làm rõ thêm",
+    "keywords": ["keyword1", "keyword2"]
+}}
+"""
+        
+        gemini_response = gemini_client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=validation_prompt,
+        )
+        
+        response_text = gemini_response.text.strip()
+        
+        # Try to parse JSON from response
+        import json
+        try:
+            # Remove markdown code blocks if present
+            if response_text.startswith('```'):
+                response_text = response_text.split('```')[1]
+                if response_text.startswith('json'):
+                    response_text = response_text[4:]
+            
+            parsed = json.loads(response_text)
+            
+            return {
+                "status": "success",
+                "type": parsed.get("type", "legal_unclear"),
+                "message": parsed.get("clarification_question", ""),
+                "keywords": parsed.get("keywords", [])
+            }, 200
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM response: {response_text}")
+            logger.error(f"GEMINI KEY: {GEMINI_API_KEY}")
+            # Fallback to legal_unclear if parsing fails
+            return {
+                "status": "success",
+                "type": "legal_unclear",
+                "message": "Vui lòng cung cấp thêm thông tin chi tiết về câu hỏi của bạn.",
+                "keywords": []
+            }, 200
+    
+    except Exception as e:
+        logger.error(f"Error validating query: {str(e)}")
+        logger.error(f"GEMINI KEY: {GEMINI_API_KEY}")
+        # Return consistent response structure even on error
+        return {
+            "status": "success",
+            "type": "legal_unclear",
+            "message": "Xảy ra lỗi khi xác định loại câu hỏi. Vui lòng cung cấp thêm thông tin chi tiết.",
+            "keywords": []
+        }, 200
+
+
+if __name__ == '__main__':
+    logger.info('QNA server is starting...')
+    logger.info('Available endpoints:')
+    logger.info('  Legacy v1 endpoints: /api/v1/question')
+    logger.info('  Multi-turn v2 endpoints: /api/v2/chat/*')
+    serve(app, host='0.0.0.0', port=5001, threads=4)

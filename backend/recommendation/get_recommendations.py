@@ -67,13 +67,13 @@ def get_recommendations():
                 if index != -1:
                     result_string = result_string[index + len("noi_dung: "):].strip()
                 text_topics.append({
-                    "id": doc.metadata["id"],
-                    "id_vb": doc.metadata["id_vb"],
-                    "chi_muc_cha": doc.metadata["chi_muc_cha"],
+                    "id": doc.metadata.get("id", ""),
+                    "id_vb": doc.metadata.get("id_vb", ""),
+                    "chi_muc_cha": doc.metadata.get("chi_muc_cha", ""),
                     "citation": result_string,
                 })
-                if doc.metadata["id_vb"] and doc.metadata["id_vb"] not in text_ids:
-                    text_ids.append(doc.metadata["id_vb"])
+                if doc.metadata.get("id_vb") and doc.metadata.get("id_vb") not in text_ids:
+                    text_ids.append(doc.metadata.get("id_vb"))
 
             return {
                 "text_topics": text_topics,

@@ -18,12 +18,17 @@ DEMUC_JSON_PATH = os.path.join("..", "..", "law-crawler", "phap-dien", "demuc.js
 DB_PERSIST_PATH = "./chroma_db_demuc"
 ST_MODEL_PATH = "keepitreal/vietnamese-sbert"
 
-# ---- Load đề mục metadata (UUID → topic name) ----
-demuc_names = {}
+# ---- Load đề mục metadata (UUID → full metadata) ----
+demuc_meta_by_id = {}
 if os.path.exists(DEMUC_JSON_PATH):
     with open(DEMUC_JSON_PATH, "r", encoding="utf-8-sig") as f:
-        for item in json.load(f):
-            demuc_names[item["Value"]] = item["Text"]
+        data = json.load(f)
+        for item in data:
+            # Tùy cấu trúc file JSON, nhưng thường key ID là "Value"
+            demuc_id = item.get("Value") or item.get("id") or item.get("demuc_id")
+            if not demuc_id:
+                continue
+            demuc_meta_by_id[demuc_id] = item
 
 # ---- Parse HTML files into LangChain Documents ----
 documents = []
@@ -36,7 +41,12 @@ print(f"Found {len(html_files)} HTML files in {html_dir}")
 
 for filename in html_files:
     demuc_id = filename.replace(".html", "")
-    demuc_name = demuc_names.get(demuc_id, "Unknown")
+    demuc_meta = demuc_meta_by_id.get(demuc_id, {}) if isinstance(demuc_meta_by_id, dict) else {}
+    demuc_name = (
+        demuc_meta.get("Text")
+        or demuc_meta.get("demuc_name")
+        or "Unknown"
+    )
     filepath = os.path.join(html_dir, filename)
 
     with open(filepath, "r", encoding="utf-8-sig") as f:
@@ -58,11 +68,22 @@ for filename in html_files:
             continue
 
         full_text = f"{title}\n{source}\n\n{content}"
+
+        # Build rich metadata so chat_endpoints.py có thể tạo citations đẹp:
+        # - mapc: mã pháp điển / mã điều (dùng làm id khi click vào trích dẫn)
+        # - _link: link gốc (nếu có)
+        # - chude_id, demuc_id: phân nhóm chủ đề
+        # - ten: tên đề mục / tiêu đề hiển thị
         metadata = {
             "demuc_id": demuc_id,
             "demuc_name": demuc_name,
             "dieu_title": title,
             "source": filename,
+            # Các trường bổ sung sẽ có giá trị nếu tồn tại trong demuc.json
+            "mapc": demuc_meta.get("mapc") or demuc_meta.get("MaPC") or "",
+            "_link": demuc_meta.get("_link") or demuc_meta.get("link") or "",
+            "chude_id": demuc_meta.get("chude_id") or demuc_meta.get("ChuDeId") or "",
+            "ten": demuc_meta.get("ten") or demuc_meta.get("Text") or title,
         }
         documents.append(Document(page_content=full_text, metadata=metadata))
 

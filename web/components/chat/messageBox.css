@@ -1,5 +1,5 @@
 .message-box {
-    max-width: 600px;
+    max-width: 800px;
     width: 100%;
 }
 .message {
@@ -34,7 +34,8 @@
     background-color: white;
 }
 .message-box p {
-    font-size: 20px;
+    font-size: 16px;
+    line-height: 1.6;
 }
 .message-box .message.user p {
     color: black;

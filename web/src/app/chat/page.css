@@ -6,3 +6,15 @@
     display: block;
     margin: 14px 12px;
 }
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}

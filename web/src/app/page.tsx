@@ -7,7 +7,10 @@ import { useEffect, useState } from 'react';
 import { Fade } from 'react-awesome-reveal';
 import vbqpplService from '@/services/vbqppl.service';
 
-const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
+const Lottie = dynamic(() => import('lottie-react'), { 
+  ssr: false,
+  loading: () => <Spin size="large" />
+});
 export default function Home() {
     const [animationData, setAnimationData] = useState<any>(null);
     const [searchResult, setSearchResult] = useState<any[]>([]);
@@ -30,7 +33,7 @@ export default function Home() {
             num_of_relevant_texts: 7,
         });
 
-        for (const id of result.ids) {
+        for (const id of result.text_ids) {
             const vb = await vbqpplService.getOne(id);
             console.log(vb);
         }
