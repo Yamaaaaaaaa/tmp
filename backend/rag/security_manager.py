@@ -260,6 +260,41 @@ class SecurityManager:
         except Exception as e:
             logger.error(f"Error logging security event: {str(e)}")
             return False
+
+    def log_activity(self, email: str, action: str,
+                     metadata: Optional[Dict[str, Any]] = None,
+                     session: ConversationSession = None,
+                     status: str = "success",
+                     ip_address: str = None) -> bool:
+        """
+        Compatibility wrapper for audit logging.
+
+        Args:
+            email: User email
+            action: Activity action
+            metadata: Optional metadata to serialize into details
+            session: ConversationSession instance (optional)
+            status: Status (default: success)
+            ip_address: User IP address (optional)
+
+        Returns:
+            Success status
+        """
+        details = None
+        if metadata is not None:
+            try:
+                details = json.dumps(metadata, ensure_ascii=False)
+            except Exception:
+                details = str(metadata)
+
+        return self.log_security_event(
+            email=email,
+            session=session,
+            action=action,
+            status=status,
+            details=details,
+            ip_address=ip_address
+        )
     
     def mask_sensitive_data(self, data: Dict[str, Any], 
                            sensitive_keys: list = None) -> Dict[str, Any]:

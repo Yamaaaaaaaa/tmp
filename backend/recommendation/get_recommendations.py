@@ -6,6 +6,13 @@ from waitress import serve
 from crontab import CronTab
 import logging
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -23,9 +30,9 @@ if torch.cuda.is_available():
     current_device="cuda"
 
 embeddings = HuggingFaceEmbeddings(model_name=ST_MODEL_PATH, model_kwargs={"device": current_device})
-
+logger.info(f"Loading text vector database from {TEXT_DB_PATH}...")
 text_vectordb = Chroma(embedding_function=embeddings, persist_directory=TEXT_DB_PATH)
-
+logger.info(f"Number of documents in text_vectordb: {text_vectordb._collection.count()}")
 
 @app.route('/api/v1/', methods=['GET'])
 def init():
@@ -58,12 +65,12 @@ def get_recommendations():
                     "status": "error",
                     "response": "Keyword can not be empty",
                 }, 400
+            logger.info(f"Received keyword: {keyword}, num_of_relevant_texts: {num_of_relevant_texts}")
             output = text_vectordb.similarity_search(keyword, k=num_of_relevant_texts)
 
             text_topics = []
             text_ids = []
             for doc in output:
-                logging.info(f"Retrieved doc metadata: {doc.metadata}")
                 result_string = doc.page_content
                 index = result_string.find("noi_dung: ")
                 if index != -1:

@@ -18,3 +18,42 @@
         opacity: 1;
     }
 }
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Table styling for markdown rendered content */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0;
+    background-color: #fafafa;
+}
+
+table thead {
+    background-color: #f0f2f4;
+}
+
+table th {
+    border: 1px solid #d9d9d9;
+    padding: 12px 16px;
+    font-weight: 600;
+    text-align: left;
+    color: #262626;
+}
+
+table td {
+    border: 1px solid #d9d9d9;
+    padding: 12px 16px;
+    color: #262626;
+}
+
+table tr:hover {
+    background-color: #f5f5f5;
+}

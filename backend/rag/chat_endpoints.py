@@ -13,6 +13,7 @@ from session_manager import session_manager
 from memory_manager import memory_manager
 from security_manager import security_manager
 from directory import ACCESS_TOKEN_KEY
+from file_parser import parse_file, validate_file
 # from vectorize_corpus import vectordb
 from transformers import pipeline
 import json
@@ -862,4 +863,108 @@ def get_security_logs():
         return {
             "status": "error",
             "message": f"Failed to get logs: {str(e)}"
+        }, 500
+
+
+@chat_bp.route('/file/upload', methods=['POST'])
+def upload_file():
+    """
+    Upload và parse file (PDF, DOCX, TXT, Images)
+    
+    Request:
+        Content-Type: multipart/form-data
+        - file: binary file data
+    
+    Returns:
+        {
+            "status": "success" or "error",
+            "data": {
+                "file_name": str,
+                "file_type": str,
+                "content": str (extracted text),
+                "char_count": int,
+                "message": str
+            }
+        }
+    """
+    email, status_code, response = get_auth_email()
+    if email is None:
+        return response, status_code
+    
+    try:
+        # Check if file is present
+        if 'file' not in request.files:
+            return {
+                "status": "error",
+                "message": "No file provided"
+            }, 400
+        
+        uploaded_file = request.files['file']
+        
+        if uploaded_file.filename == '':
+            return {
+                "status": "error",
+                "message": "No file selected"
+            }, 400
+        
+        file_name = uploaded_file.filename
+        file_content = uploaded_file.read()
+        
+        # Validate file first (quick check)
+        validation = validate_file(file_content, file_name)
+        
+        if not validation['is_supported']:
+            return {
+                "status": "error",
+                "message": f"File type '{validation['file_type']}' is not supported. Supported types: PDF, DOCX, TXT, Images (JPG, PNG, GIF, BMP)",
+                "data": validation
+            }, 400
+        
+        if validation['file_size'] > (10 * 1024 * 1024):  # 10MB limit
+            return {
+                "status": "error",
+                "message": f"File size ({validation['file_size_mb']}MB) exceeds maximum limit of 10MB",
+                "data": validation
+            }, 400
+        
+        # Log the file upload
+        security_manager.log_activity(
+            email,
+            'file_upload',
+            metadata={
+                'file_name': file_name,
+                'file_size': validation['file_size'],
+                'file_type': validation['file_type']
+            }
+        )
+        
+        # Parse the file
+        parse_result = parse_file(file_content, file_name)
+        
+        if parse_result['status'] != 'success':
+            return {
+                "status": "error",
+                "message": parse_result['message'],
+                "data": {
+                    "file_name": parse_result['file_name'],
+                    "file_type": parse_result['file_type']
+                }
+            }, 400
+        
+        return {
+            "status": "success",
+            "message": "File parsed successfully",
+            "data": {
+                "file_name": parse_result['file_name'],
+                "file_type": parse_result['file_type'],
+                "content": parse_result['content'],
+                "char_count": parse_result['char_count']
+            }
+        }, 200
+    
+    except Exception as e:
+        logger.error(f"Error uploading file: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to process file: {str(e)}"
         }, 500

@@ -40,7 +40,8 @@ class QnAService {
     }
 
     async answer(body: any) {
-        return (await this.client.post('/question', body)) as any;
+            console.info('[QnAService.answer] Query:', body);
+            return (await this.client.post('/question', body)) as any;
     }
     
     async createSession(sessionName?: string) {
@@ -62,6 +63,7 @@ class QnAService {
         messageType: 'query' | 'chitchat' = 'query'
     ) {
         try {
+                console.info('[QnAService.sendMessage] Query:', { sessionId, question, useMemory, messageType });
             const data = await this.chatClient.post('/message/send', {
                 session_id: sessionId,
                 question: question,
@@ -77,6 +79,7 @@ class QnAService {
     
     async validateQuery(question: string): Promise<QueryValidationResponse> {
         try {
+                console.info('[QnAService.validateQuery] Query:', question);
             // Note: createHttpClient interceptor already returns res.data
             // so response here is already the data object, not axios response
             const data = await this.client.post('/validate-query', {

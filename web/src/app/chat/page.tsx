@@ -3,8 +3,8 @@ import MessageBox from '@/components/chat/MessageBox';
 import QuestionSideNav from '@/components/chat/QuestionsSidenav';
 import { Button, Card, Col, Input, Row } from 'antd';
 import './page.css';
-import { SendOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { SendOutlined, PaperClipOutlined } from '@ant-design/icons';
+import { useEffect, useState, useRef } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import qnaService from '@/services/qna.service';
 import chatService, { CitationModel } from '@/services/chat.service';
@@ -87,8 +87,13 @@ export default function Page() {
     const [currentSessionId, setCurrentSessionId] = useState<string>();
     const [refreshSessionsKey, setRefreshSessionsKey] = useState<number>(0);
     const [clarificationOptions, setClarificationOptions] = useState<ClarificationOptions | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [uploadedFileContent, setUploadedFileContent] = useState<string | null>(null);
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
     const [autoAnimateParent] = useAutoAnimate();
     const router = useRouter();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Load messages when session is selected/changed
     useEffect(() => {
@@ -147,41 +152,35 @@ export default function Page() {
 
         const userQuery = search;
 
-        // Add user message immediately and preserve history
+        // Add user message
         const newUserMessage = {
             isUser: true,
-            content: userQuery,
+            content: selectedFile 
+                ? `${userQuery}\n\n📎 File: ${selectedFile.name}` 
+                : userQuery,
             time: new Date(),
         };
         setMessageBoxes(prev => [...prev, newUserMessage]);
         setSearch('');
+        removeSelectedFile();
         setLoading(true);
 
         try {
-            // Step 1: Validate query
-            console.log('Sending validation request for query:', userQuery);
+            // Validate query first
             const validation = await qnaService.validateQuery(userQuery);
 
-            console.log('Query validation result:', validation);
-
-            // Ensure validation has expected structure
             if (!validation || typeof validation !== 'object' || !('type' in validation)) {
-                console.error('Invalid validation response structure:', validation);
                 throw new Error('Invalid validation response');
             }
 
             if (validation.type === 'legal_unclear' && validation.message) {
-                // If query is unclear legal question, ask for clarification AND persist to session
-                // so the next user turn has memory of what they asked.
                 const sessionId = await ensureSession(userQuery);
                 await chatService.storeMessage(sessionId, userQuery, validation.message, []);
-
-                const clarificationMessage = {
+                setMessageBoxes(prev => [...prev, {
                     isUser: false,
-                    content: validation.message,
+                    content: validation.message || '',
                     time: new Date(),
-                };
-                setMessageBoxes(prev => [...prev, clarificationMessage]);
+                } as MessageBox]);
                 setClarificationOptions({
                     baseQuestion: userQuery,
                     keywords: validation.keywords || [],
@@ -196,9 +195,15 @@ export default function Page() {
             const useMemory = messageType === 'query';
             const sessionId = await ensureSession(userQuery);
 
+            // Build context with file content if available
+            let contextWithFile = userQuery;
+            if (uploadedFileContent) {
+                contextWithFile = `${userQuery}\n\n[File attached: ${selectedFile?.name || 'file'}]\n${uploadedFileContent}`;
+            }
+
             const chatResponse = await chatService.sendMessage(
                 sessionId,
-                userQuery,
+                contextWithFile,
                 useMemory,
                 messageType,
                 validation.keywords || []
@@ -292,10 +297,48 @@ export default function Page() {
     const goToCitation = (mapc: string) => {
         router.push(`/phapdien?id=${mapc}`);
     };
+
+    const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setSelectedFile(file);
+        setUploadingFile(true);
+        setUploadError(null);
+
+        try {
+            const uploadResponse = await chatService.uploadFile(file);
+            
+            if (uploadResponse?.data?.content) {
+                setUploadedFileContent(uploadResponse.data.content);
+                setUploadError(null);
+            } else {
+                setUploadError('Failed to parse file content');
+                setUploadedFileContent(null);
+            }
+        } catch (error) {
+            console.error('File upload error:', error);
+            setUploadError(
+                error instanceof Error ? error.message : 'Failed to upload file'
+            );
+            setUploadedFileContent(null);
+        } finally {
+            setUploadingFile(false);
+        }
+    };
+
+    const removeSelectedFile = () => {
+        setSelectedFile(null);
+        setUploadedFileContent(null);
+        setUploadError(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
     return (
         <main>
             <Row>
-                <Col xs={24} sm={16} md={10} lg={6} xl={5}>
+                <Col xs={24} sm={16} md={9} lg={6} xl={4}>
                     <QuestionSideNav
                         setMessageBoxes={setMessageBoxes}
                         setSelectedQuestion={setSelectedQuestion}
@@ -314,9 +357,9 @@ export default function Page() {
                     }}
                     xs={24}
                     sm={8}
-                    md={14}
+                    md={15}
                     lg={18}
-                    xl={19}
+                    xl={20}
                 >
                     {messageBoxes.length > 0 && (
                         <div
@@ -434,7 +477,6 @@ export default function Page() {
                                     >
                                         <div
                                             style={{
-                                                background: 'rgb(96, 168, 246)',
                                                 background: 'linear-gradient(90deg, rgba(96, 168, 246, 1) 17%, rgba(94, 167, 246, 1) 19%, rgba(47, 140, 243, 1) 64%)',
                                                 borderRadius: '12px',
                                                 boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
@@ -452,29 +494,98 @@ export default function Page() {
                     <div
                         style={{
                             display: 'flex',
-                            alignItems: 'center',
+                            flexDirection: 'column',
+                            gap: 8,
                             position: 'absolute',
                             bottom: 0,
                             left: 0,
                             right: 0,
                             padding: '6px 12px',
-                            height: 60,
                         }}
                     >
-                        <Input
-                            value={search}
-                            className="w-full rounded h-full border"
-                            placeholder="Hỏi gì đó...."
-                            onChange={(event) => setSearch(event.target.value as string)}
-                            onKeyUp={(event) => {
-                                if (event.key === 'Enter') {
-                                    send();
-                                }
-                            }}
+                        {/* Hidden file input */}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            onChange={handleFileSelect}
+                            style={{ display: 'none' }}
+                            accept="*"
                         />
-                        <Button onClick={send} type="primary" className="h-full" size="large">
-                            <SendOutlined />
-                        </Button>
+
+                        {/* Selected file display */}
+                        {selectedFile && (
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    padding: '6px 12px',
+                                    background: uploadError ? '#fff1f0' : uploadingFile ? '#e6f7ff' : '#f0f2f4',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    border: uploadError ? '1px solid #ffccc7' : 'none',
+                                }}
+                            >
+                                <PaperClipOutlined 
+                                    style={{ 
+                                        color: uploadError ? '#ff4d4f' : uploadingFile ? '#1890ff' : '#1890ff',
+                                        animation: uploadingFile ? 'spin 1s linear infinite' : 'none'
+                                    }} 
+                                />
+                                <span style={{ color: uploadError ? '#ff4d4f' : 'inherit' }}>
+                                    {uploadingFile ? 'Đang upload...' : uploadError ? `❌ ${uploadError}` : selectedFile.name}
+                                </span>
+                                {!uploadingFile && !uploadError && (
+                                    <span style={{ fontSize: '11px', color: '#999' }}>
+                                        ({(selectedFile.size / 1024).toFixed(2)} KB)
+                                    </span>
+                                )}
+                                {!uploadingFile && (
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        onClick={removeSelectedFile}
+                                        style={{ marginLeft: 'auto', color: uploadError ? '#ff4d4f' : '#999' }}
+                                    >
+                                        ✕
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Input section */}
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                height: 42,
+                            }}
+                        >
+                            <Button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="h-full"
+                                size="large"
+                                title="Đính kèm file"
+                            >
+                                <PaperClipOutlined />
+                            </Button>
+                            <Input
+                                value={search}
+                                className="rounded border"
+                                placeholder="Hỏi gì đó...."
+                                onChange={(event) => setSearch(event.target.value as string)}
+                                onKeyUp={(event) => {
+                                    if (event.key === 'Enter') {
+                                        send();
+                                    }
+                                }}
+                                style={{ flex: 1, height: '100%' }}
+                            />
+                            <Button onClick={send} type="primary" className="h-full" size="large">
+                                <SendOutlined />
+                            </Button>
+                        </div>
                     </div>
                 </Col>
             </Row>

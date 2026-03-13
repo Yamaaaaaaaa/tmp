@@ -17,3 +17,6 @@ google-genai
 cryptography
 python-dateutil
 beautifulsoup4
+python-docx
+pdfplumber
+pillow

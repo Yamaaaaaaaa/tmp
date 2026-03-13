@@ -252,6 +252,29 @@ class ChatService {
             throw error;
         }
     }
+
+    /**
+     * Upload file và parse content (PDF, DOCX, TXT, Images)
+     *
+     * @param file - File to upload
+     * @returns Promise<FileUploadResponse>
+     */
+    async uploadFile(file: File): Promise<ChatResponse> {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await this.client.post('/file/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            return response as unknown as ChatResponse;
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            throw error;
+        }
+    }
 }
 
 export default new ChatService() as ChatService;
