@@ -18,6 +18,7 @@ from transformers import pipeline
 import json
 import re
 from google import genai
+from google.genai import types
 import os
 from dotenv import load_dotenv
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -446,11 +447,25 @@ def send_message():
             )
             citations = []
 
+        # System prompt for legal advisor
+        system_prompt = """Bạn là một trợ lý AI chuyên tư vấn pháp luật Việt Nam.
+
+Hướng dẫn:
+1. Trả lời rõ ràng, chính xác và dễ hiểu bằng Tiếng Việt
+2. Luôn trích dẫn các điều luật, khoản, điểm liên quan khi có
+3. Nếu câu hỏi liên quan đến nhiều luật, hãy liệt kê tất cả các quy định có liên quan
+4. Giải thích thuật ngữ pháp luật khi cần thiết
+5. Nếu chưa rõ về tình huống cụ thể, hãy hỏi thêm chi tiết
+6. Lưu ý: Đây là thông tin pháp luật tổng quát, không phải lời khuyên pháp lý chính thức. Các trường hợp cụ thể nên tham khảo luật sư chuyên môn."""
+
         # Get AI response
         try:
             gemini_response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                )
             )
             ai_response = gemini_response.text
         except Exception as e:

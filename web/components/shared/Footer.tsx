@@ -14,7 +14,7 @@ export default function Footer() {
                 }}
             >
                 <h1 style={{ textAlign: 'center', color: 'black', fontWeight: 400, fontSize: 14 }}>
-                    ©CTU.LinguTechies - GPL V3 License - 2023
+                    ©CTU.LinguTechies - GPL V3 License - 2026
                 </h1>
                 <a
                     target="_blank"

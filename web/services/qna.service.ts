@@ -25,6 +25,7 @@ export interface QueryValidationResponse {
     type: 'chitchat' | 'legal_unclear' | 'legal_clear';
     message?: string;
     keywords?: string[];
+    suggestions?: string[];
 }
 
 class QnAService {

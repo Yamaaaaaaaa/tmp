@@ -4,11 +4,46 @@ import QuestionSideNav from '@/components/chat/QuestionsSidenav';
 import { Button, Card, Col, Input, Row } from 'antd';
 import './page.css';
 import { SendOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import qnaService from '@/services/qna.service';
 import chatService, { CitationModel } from '@/services/chat.service';
 import { useRouter } from 'next/navigation';
+
+// Typing Indicator Component
+const TypingIndicator = () => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '12px 16px' }}>
+        <style>{`
+            @keyframes typingBounce {
+                0%, 60%, 100% {
+                    transform: translateY(0);
+                    opacity: 0.7;
+                }
+                30% {
+                    transform: translateY(-10px);
+                    opacity: 1;
+                }
+            }
+            .typing-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background-color: #60a8f6;
+                animation: typingBounce 1.4s infinite;
+            }
+            .typing-dot:nth-child(2) {
+                animation-delay: 0.2s;
+            }
+            .typing-dot:nth-child(3) {
+                animation-delay: 0.4s;
+            }
+        `}</style>
+        <div className="typing-dot"></div>
+        <div className="typing-dot"></div>
+        <div className="typing-dot"></div>
+    </div>
+);
+
 export interface SelectedQuestion {
     isNew: boolean;
     question?: string;
@@ -18,11 +53,13 @@ interface MessageBox {
     isUser: boolean;
     content: string;
     time: Date;
+    citations?: CitationModel[];
 }
 
 interface ClarificationOptions {
     baseQuestion: string;
     keywords: string[];
+    suggestions?: string[];
 }
 
 /*
@@ -45,7 +82,6 @@ export default function Page() {
         isNew: true,
     });
     const [messageBoxes, setMessageBoxes] = useState<MessageBox[]>([]);
-    const [citations, setCitations] = useState<CitationModel[]>([]);
     const [search, setSearch] = useState<string>();
     const [loading, setLoading] = useState<boolean>(false);
     const [currentSessionId, setCurrentSessionId] = useState<string>();
@@ -53,6 +89,39 @@ export default function Page() {
     const [clarificationOptions, setClarificationOptions] = useState<ClarificationOptions | null>(null);
     const [autoAnimateParent] = useAutoAnimate();
     const router = useRouter();
+
+    // Load messages when session is selected/changed
+    useEffect(() => {
+        if (currentSessionId) {
+            const loadSessionMessages = async () => {
+                try {
+                    const response = await chatService.getSessionMessages(currentSessionId, 50);
+                    if (response?.data && Array.isArray(response.data)) {
+                        const messages: MessageBox[] = [];
+                        response.data.forEach((msg: any) => {
+                            // Add user message
+                            messages.push({
+                                isUser: true,
+                                content: msg.user_query,
+                                time: new Date(msg.created_at),
+                            });
+                            // Add AI response message with citations
+                            messages.push({
+                                isUser: false,
+                                content: msg.ai_response,
+                                time: new Date(msg.created_at),
+                                citations: msg.citations || [],
+                            });
+                        });
+                        setMessageBoxes(messages);
+                    }
+                } catch (error) {
+                    console.error('Error loading session messages:', error);
+                }
+            };
+            loadSessionMessages();
+        }
+    }, [currentSessionId]);
 
     const truncateSessionName = (text: string) => {
         const maxLength = 60;
@@ -75,9 +144,9 @@ export default function Page() {
 
     const send = async () => {
         if (!search) return;
-        
+
         const userQuery = search;
-        
+
         // Add user message immediately and preserve history
         const newUserMessage = {
             isUser: true,
@@ -92,15 +161,15 @@ export default function Page() {
             // Step 1: Validate query
             console.log('Sending validation request for query:', userQuery);
             const validation = await qnaService.validateQuery(userQuery);
-            
+
             console.log('Query validation result:', validation);
-            
+
             // Ensure validation has expected structure
             if (!validation || typeof validation !== 'object' || !('type' in validation)) {
                 console.error('Invalid validation response structure:', validation);
                 throw new Error('Invalid validation response');
             }
-            
+
             if (validation.type === 'legal_unclear' && validation.message) {
                 // If query is unclear legal question, ask for clarification AND persist to session
                 // so the next user turn has memory of what they asked.
@@ -116,6 +185,7 @@ export default function Page() {
                 setClarificationOptions({
                     baseQuestion: userQuery,
                     keywords: validation.keywords || [],
+                    suggestions: validation.suggestions || [],
                 });
                 setLoading(false);
                 setRefreshSessionsKey((prev) => prev + 1);
@@ -136,13 +206,13 @@ export default function Page() {
 
             const aiResponse = chatResponse?.data?.ai_response || '';
             const responseCitations = chatResponse?.data?.citations || [];
-            setCitations(messageType === 'query' ? responseCitations : []);
 
             setTimeout(() => {
-                const newBotMessage = {
+                const newBotMessage: MessageBox = {
                     isUser: false,
                     content: aiResponse,
                     time: new Date(),
+                    citations: messageType === 'query' ? responseCitations : [],
                 };
                 setMessageBoxes(prev => [...prev, newBotMessage]);
                 setLoading(false);
@@ -162,12 +232,17 @@ export default function Page() {
         }
     };
 
-    const handleClarificationChoice = async (mode: 'keyword' | 'skip', keyword?: string) => {
+    const handleClarificationChoice = async (mode: 'keyword' | 'skip' | 'suggestion', keywordOrSuggestion?: string) => {
         if (!clarificationOptions) return;
 
         const base = clarificationOptions.baseQuestion;
-        const refinedQuestion =
-            mode === 'keyword' && keyword ? `${base}\n(Trọng tâm: ${keyword})` : base;
+        let refinedQuestion = base;
+
+        if (mode === 'keyword' && keywordOrSuggestion) {
+            refinedQuestion = `${base}\n(Trọng tâm: ${keywordOrSuggestion})`;
+        } else if (mode === 'suggestion' && keywordOrSuggestion) {
+            refinedQuestion = `Hỏi thêm về: ${keywordOrSuggestion}`;
+        }
 
         const userMessage = {
             isUser: true,
@@ -185,18 +260,18 @@ export default function Page() {
                 refinedQuestion,
                 true,
                 'query',
-                mode === 'keyword' && keyword ? [keyword] : []
+                mode === 'keyword' && keywordOrSuggestion ? [keywordOrSuggestion] : []
             );
 
             const aiResponse = chatResponse?.data?.ai_response || '';
             const responseCitations = chatResponse?.data?.citations || [];
-            setCitations(responseCitations);
 
             setTimeout(() => {
-                const newBotMessage = {
+                const newBotMessage: MessageBox = {
                     isUser: false,
                     content: aiResponse,
                     time: new Date(),
+                    citations: responseCitations,
                 };
                 setMessageBoxes(prev => [...prev, newBotMessage]);
                 setLoading(false);
@@ -223,7 +298,6 @@ export default function Page() {
                 <Col xs={24} sm={16} md={10} lg={6} xl={5}>
                     <QuestionSideNav
                         setMessageBoxes={setMessageBoxes}
-                        setCitations={setCitations}
                         setSelectedQuestion={setSelectedQuestion}
                         currentSessionId={currentSessionId}
                         setCurrentSessionId={setCurrentSessionId}
@@ -252,6 +326,9 @@ export default function Page() {
                                 height: '100%',
                                 overflowY: 'auto',
                                 paddingBottom: 80, // chừa chỗ cho thanh gõ
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 16,
                             }}
                         >
                             {messageBoxes.map((messageBox, index) => (
@@ -260,81 +337,116 @@ export default function Page() {
                                     isUser={messageBox.isUser}
                                     content={messageBox.content}
                                     time={messageBox.time}
+                                    citations={messageBox.citations}
+                                    onCitationClick={goToCitation}
                                 />
                             ))}
 
                             {clarificationOptions && (
-                                <div
-                                    style={{
-                                        marginTop: 16,
-                                        display: 'flex',
-                                        flexWrap: 'wrap',
-                                        gap: 8,
-                                    }}
-                                >
-                                    {clarificationOptions.keywords.map((kw) => (
-                                        <Button
-                                            key={kw}
-                                            size="small"
-                                            onClick={() => handleClarificationChoice('keyword', kw)}
+                                <div>
+                                    {/* Keywords section */}
+                                    {clarificationOptions.keywords && clarificationOptions.keywords.length > 0 && (
+                                        <div
+                                            style={{
+                                                marginTop: 16,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 8,
+                                            }}
                                         >
-                                            {kw}
-                                        </Button>
-                                    ))}
-                                    <Button
-                                        size="small"
-                                        type="link"
-                                        onClick={() => handleClarificationChoice('skip')}
+                                            <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>Từ khóa chính:</p>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                {clarificationOptions.keywords.map((kw) => (
+                                                    <Button
+                                                        key={kw}
+                                                        size="small"
+                                                        onClick={() => handleClarificationChoice('keyword', kw)}
+                                                    >
+                                                        {kw}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Suggestions section */}
+                                    {clarificationOptions.suggestions && clarificationOptions.suggestions.length > 0 && (
+                                        <div
+                                            style={{
+                                                marginTop: 16,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 8,
+                                            }}
+                                        >
+                                            <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>Chủ đề liên quan:</p>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                {clarificationOptions.suggestions.map((suggestion) => (
+                                                    <Button
+                                                        key={suggestion}
+                                                        size="small"
+                                                        type="dashed"
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => handleClarificationChoice('suggestion', suggestion)}
+                                                    >
+                                                        {suggestion}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Skip option */}
+                                    <div
+                                        style={{
+                                            marginTop: 12,
+                                            display: 'flex',
+                                            gap: 8,
+                                        }}
                                     >
-                                        Bỏ qua, cứ trả lời theo thông tin hiện tại
-                                    </Button>
+                                        <Button
+                                            size="small"
+                                            type="link"
+                                            onClick={() => handleClarificationChoice('skip')}
+                                        >
+                                            Bỏ qua, trả lời theo thông tin hiện tại
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
-                            
-                            {/* Loading state for validation or processing */}
+
+                            {/* Loading state - Typing indicator */}
                             {loading && (
                                 <div
                                     style={{
-                                        padding: '16px',
-                                        textAlign: 'center',
-                                        color: '#999',
-                                        fontSize: '14px',
-                                        marginTop: '12px',
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        marginTop: 16,
                                     }}
                                 >
-                                    <span style={{ animation: 'pulse 1.5s infinite' }}>
-                                        Đang xử lý...
-                                    </span>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'flex-start',
+                                            width: '100%',
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                background: 'rgb(96, 168, 246)',
+                                                background: 'linear-gradient(90deg, rgba(96, 168, 246, 1) 17%, rgba(94, 167, 246, 1) 19%, rgba(47, 140, 243, 1) 64%)',
+                                                borderRadius: '12px',
+                                                boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px',
+                                                padding: '8px 12px',
+                                                maxWidth: '120px',
+                                            }}
+                                        >
+                                            <TypingIndicator />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
-                            
-                            {citations?.length > 0 && (
-                                <h4 style={{ color: '#ccc', marginTop: 24 }} className="text-2xl">
-                                    Trích dẫn
-                                </h4>
-                            )}
-                            <Row gutter={[16, 16]}>
-                                {citations?.map((item: CitationModel) => (
-                                    <Col key={item.mapc} xs={24} sm={12} md={12} lg={8} xl={5}>
-                                        <Card
-                                            style={{ padding: '12px 0' }}
-                                            onClick={() => goToCitation(item.mapc)}
-                                            className="max-h-[300px] overflow-hidden text-ellipsis py-5"
-                                            hoverable
-                                            title={item.ten}
-                                        >
-                                            <p
-                                                style={{
-                                                    whiteSpace: 'pre-line',
-                                                }}
-                                                className="h-full"
-                                            >
-                                                {item.noidung}
-                                            </p>
-                                        </Card>
-                                    </Col>
-                                ))}
-                            </Row>
                         </div>
                     )}
                     <div

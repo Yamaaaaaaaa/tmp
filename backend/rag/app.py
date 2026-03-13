@@ -16,6 +16,7 @@ import requests
 from dotenv import load_dotenv
 import os
 from google import genai
+from google.genai import types
 import logging
 
 # Import multi-turn chat blueprint
@@ -222,6 +223,7 @@ def add_question_with_context():
     
     citation = []
     for doc in output:
+        logger.info(f"Retrieved doc metadata: {doc.metadata}")
         result_string = doc.page_content
         index = result_string.find("noidung: ")
         if index != -1:
@@ -237,15 +239,26 @@ def add_question_with_context():
             "ten": doc.metadata.get("ten", doc.metadata.get("demuc_name", "")),
             "noidung": result_string
         })
-    
-    
-
 
     inputs = f"Dựa vào văn bản sau đây:\n{context}\nHãy trả lời câu hỏi: {question}"
     try:
+        # System prompt for legal advisor
+        system_prompt = """Bạn là một trợ lý AI chuyên tư vấn pháp luật Việt Nam.
+
+Hướng dẫn:
+1. Trả lời rõ ràng, chính xác và dễ hiểu bằng Tiếng Việt
+2. Luôn trích dẫn các điều luật, khoản, điểm liên quan khi có
+3. Nếu câu hỏi liên quan đến nhiều luật, hãy liệt kê tất cả các quy định có liên quan
+4. Giải thích thuật ngữ pháp luật khi cần thiết
+5. Nếu chưa rõ về tình huống cụ thể, hãy hỏi thêm chi tiết
+6. Lưu ý: Đây là thông tin pháp luật tổng quát, không phải lời khuyên pháp lý chính thức. Các trường hợp cụ thể nên tham khảo luật sư chuyên môn."""
+
         gemini_response = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
             contents=inputs,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+            )
         )
         response = gemini_response.text
     except Exception as e:
@@ -322,18 +335,31 @@ def validate_query():
         
         # Call LLM to analyze query
         validation_prompt = f"""
-Phân tích câu hỏi sau và xác định loại:
-1. "chitchat" - Nếu là nội dung không liên quan đến pháp luật (chào hỏi, câu hỏi sinh hoạt, v.v.)
-2. "legal_unclear" - Nếu liên quan đến pháp luật nhưng chưa rõ ràng, cần clarification
-3. "legal_clear" - Nếu là câu hỏi pháp luật rõ ràng, cụ thể
+Phân tích câu hỏi sau:
 
 Câu hỏi: "{question}"
+
+Yêu cầu:
+1. Xác định loại câu hỏi:
+   - "chitchat" - Nếu không liên quan đến pháp luật (chào hỏi, câu hỏi sinh hoạt, v.v.)
+   - "legal_unclear" - Nếu liên quan đến pháp luật nhưng chưa rõ ràng, cần clarification
+   - "legal_clear" - Nếu là câu hỏi pháp luật rõ ràng, cụ thể
+
+2. Trích xuất các từ khóa chính từ câu hỏi (các thông tin chính, entities, key terms)
+   - VD: "Tôi muốn hỏi về quy định về hôn nhân" -> keywords: ["hôn nhân", "quy định"]
+   - VD: "Xử phạt lỗi nộp thuế như thế nào" -> keywords: ["nộp thuế", "xử phạt"]
+
+3. Nếu là câu hỏi về pháp luật chưa rõ ràng, đưa ra các gợi ý liên quan có thể hữu ích:
+   - Các chủ đề hoặc điều luật liên quan khác
+   - Các khía cạnh khác của vấn đề
+   - VD: "Hôn nhân" -> suggestions: ["Quyền lợi và nghĩa vụ trong hôn nhân", "Ly hôn", "Tài sản chung"]
 
 Trả lời theo format JSON (không có markdown):
 {{
     "type": "chitchat|legal_unclear|legal_clear",
     "clarification_question": "Nếu legal_unclear, đặt câu hỏi để làm rõ thêm",
-    "keywords": ["keyword1", "keyword2"]
+    "keywords": ["keyword1", "keyword2", "keyword3"],
+    "suggestions": ["suggestion1", "suggestion2", "suggestion3"]
 }}
 """
         
@@ -359,7 +385,8 @@ Trả lời theo format JSON (không có markdown):
                 "status": "success",
                 "type": parsed.get("type", "legal_unclear"),
                 "message": parsed.get("clarification_question", ""),
-                "keywords": parsed.get("keywords", [])
+                "keywords": parsed.get("keywords", []),
+                "suggestions": parsed.get("suggestions", [])
             }, 200
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM response: {response_text}")
@@ -369,7 +396,8 @@ Trả lời theo format JSON (không có markdown):
                 "status": "success",
                 "type": "legal_unclear",
                 "message": "Vui lòng cung cấp thêm thông tin chi tiết về câu hỏi của bạn.",
-                "keywords": []
+                "keywords": [],
+                "suggestions": []
             }, 200
     
     except Exception as e:
@@ -380,7 +408,8 @@ Trả lời theo format JSON (không có markdown):
             "status": "success",
             "type": "legal_unclear",
             "message": "Xảy ra lỗi khi xác định loại câu hỏi. Vui lòng cung cấp thêm thông tin chi tiết.",
-            "keywords": []
+            "keywords": [],
+            "suggestions": []
         }, 200
 
 

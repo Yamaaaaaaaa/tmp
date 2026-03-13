@@ -9,7 +9,6 @@ import { SetStateAction, useEffect, useState } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 export interface QuestionSideNavProps {
-    setCitations: React.Dispatch<SetStateAction<CitationModel[]>>;
     setMessageBoxes: React.Dispatch<React.SetStateAction<MessageBoxProps[]>>;
     setSelectedQuestion: React.Dispatch<React.SetStateAction<SelectedQuestion>>;
     currentSessionId?: string;
@@ -18,7 +17,6 @@ export interface QuestionSideNavProps {
 }
 
 export default function QuestionSideNav({
-    setCitations,
     setMessageBoxes,
     setSelectedQuestion,
     currentSessionId,
@@ -70,8 +68,6 @@ export default function QuestionSideNav({
                 },
             ]).flat();
             setMessageBoxes(mapped);
-            const lastMessage = messages[messages.length - 1];
-            setCitations(lastMessage?.citations || []);
         } catch (error) {
             console.error('Error loading session messages:', error);
         }
@@ -81,7 +77,6 @@ export default function QuestionSideNav({
             isNew: true,
         });
         setMessageBoxes([]);
-        setCitations([]);
         setCurrentSessionId(undefined);
     }
 
@@ -147,10 +142,10 @@ export default function QuestionSideNav({
                             gap: 8,
                         }}
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
                             <MessageOutlined />
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <h3 style={{ fontSize: 16, fontWeight: 400, margin: 0 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                                <h3 style={{ fontSize: 16, fontWeight: 400, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {session.session_name || 'Chat Session'}
                                 </h3>
                                 {session.last_message_at && (

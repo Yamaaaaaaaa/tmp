@@ -4,6 +4,7 @@ from importer import *
 from directory import *
 from waitress import serve
 from crontab import CronTab
+import logging
 
 app = Flask(__name__)
 CORS(app)
@@ -62,6 +63,7 @@ def get_recommendations():
             text_topics = []
             text_ids = []
             for doc in output:
+                logging.info(f"Retrieved doc metadata: {doc.metadata}")
                 result_string = doc.page_content
                 index = result_string.find("noi_dung: ")
                 if index != -1:

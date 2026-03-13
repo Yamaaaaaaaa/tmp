@@ -61,8 +61,20 @@ for filename in html_files:
         source = ghi_chu.get_text(strip=True) if ghi_chu else ""
 
         # Content
-        noidung = dieu_tag.find_next("p", class_="pNoiDung")
-        content = noidung.get_text("\n", strip=True) if noidung else ""
+        contents = []
+        node = dieu_tag.find_next_sibling()
+        while node:
+            classes = node.get("class", [])
+            # stop khi sang điều mới
+            if "pDieu" in classes:
+                break
+            if "pNoiDung" in classes:
+                # lấy toàn bộ text kể cả p lồng bên trong
+                text = node.get_text("\n", strip=True)
+                if text:
+                    contents.append(text)
+            node = node.find_next_sibling()
+        content = "\n".join(contents)
 
         if not content or len(content) < 50:
             continue
@@ -74,16 +86,19 @@ for filename in html_files:
         # - _link: link gốc (nếu có)
         # - chude_id, demuc_id: phân nhóm chủ đề
         # - ten: tên đề mục / tiêu đề hiển thị
+        # mapc từ anchor
+        anchor = dieu_tag.find("a")
+        mapc = anchor.get("name") if anchor else ""
         metadata = {
             "demuc_id": demuc_id,
             "demuc_name": demuc_name,
             "dieu_title": title,
             "source": filename,
             # Các trường bổ sung sẽ có giá trị nếu tồn tại trong demuc.json
-            "mapc": demuc_meta.get("mapc") or demuc_meta.get("MaPC") or "",
+            "mapc": mapc,
             "_link": demuc_meta.get("_link") or demuc_meta.get("link") or "",
-            "chude_id": demuc_meta.get("chude_id") or demuc_meta.get("ChuDeId") or "",
-            "ten": demuc_meta.get("ten") or demuc_meta.get("Text") or title,
+            "chude_id": demuc_meta.get("ChuDe") or "",
+            "ten": demuc_meta.get("Text") or title,
         }
         documents.append(Document(page_content=full_text, metadata=metadata))
 

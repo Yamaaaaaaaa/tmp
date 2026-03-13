@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 import sqlalchemy.types
 
 # Tạo kết nối với cơ sở dữ liệu
-engine = create_engine("mysql+mysqlconnector://root:123456789@localhost:3306/law")
+engine = create_engine("mysql+mysqlconnector://root:123456@localhost:3306/law")
 
 print("Đang lấy dữ liệu các văn bản pháp luật từ vbpl...")
 # Đọc dữ liệu từ cơ sở dữ liệu
